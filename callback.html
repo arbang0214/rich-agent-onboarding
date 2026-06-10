@@ -63,6 +63,11 @@
     </div>
 
     <div class="card">
+      <p class="label">토큰 교환</p>
+      <p class="value" id="exchangeStatus">대기 중…</p>
+    </div>
+
+    <div class="card">
       <p class="label">받은 포트폴리오</p>
       <p class="value" id="portfolio">확인 중…</p>
     </div>
@@ -85,6 +90,7 @@
     const errorDesc = params.get("error_description");
 
     const codeEl = document.getElementById("codeStatus");
+    const exchangeEl = document.getElementById("exchangeStatus");
     const portfolioEl = document.getElementById("portfolio");
     const csrfCard = document.getElementById("csrfCard");
     const csrfStatus = document.getElementById("csrfStatus");
@@ -92,6 +98,7 @@
     // 1) 사용자가 동의를 거부했거나 에러로 돌아온 경우
     if (error) {
       codeEl.innerHTML = '<span class="warn">받지 못함 ✗</span>';
+      exchangeEl.textContent = "—";
       portfolioEl.textContent = errorDesc ? `오류: ${errorDesc}` : `오류: ${error}`;
     } else {
       // 2) 인가코드 — 값 자체는 노출 최소화 (받았다는 사실만 표시)
@@ -113,15 +120,50 @@
       // 4) CSRF 검증: 보낸 nonce와 sessionStorage에 저장해둔 값 대조
       const sentNonce = parsed ? parsed.n : null;
       const savedNonce = sessionStorage.getItem("kakao_oauth_nonce");
+      let csrfOk = true;
       if (sentNonce || savedNonce) {
         csrfCard.style.display = "";
-        if (sentNonce && savedNonce && sentNonce === savedNonce) {
-          csrfStatus.innerHTML = '<span class="ok">정상 ✓</span>';
-        } else {
-          csrfStatus.innerHTML = '<span class="warn">불일치 ✗ (다시 시도해주세요)</span>';
-        }
+        csrfOk = Boolean(sentNonce && savedNonce && sentNonce === savedNonce);
+        csrfStatus.innerHTML = csrfOk
+          ? '<span class="ok">정상 ✓</span>'
+          : '<span class="warn">불일치 ✗ (다시 시도해주세요)</span>';
         // 일회용: 검증 후 제거
         sessionStorage.removeItem("kakao_oauth_nonce");
+      }
+
+      // 5) 토큰 교환: code가 있고 CSRF가 정상일 때만 서버 함수로 보낸다.
+      //    토큰 값은 서버에서만 다루고, 프런트는 성공/실패만 받는다.
+      if (code && csrfOk) {
+        exchange(code, picked);
+      } else if (!csrfOk) {
+        exchangeEl.innerHTML = '<span class="warn">보안 검증 실패로 중단됨 ✗</span>';
+      } else {
+        exchangeEl.innerHTML = '<span class="warn">인가코드가 없어 건너뜀 ✗</span>';
+      }
+    }
+
+    // 서버리스 함수에 code를 POST → 토큰 교환. 응답은 성공/실패 + 포트폴리오뿐.
+    async function exchange(code, portfolio) {
+      exchangeEl.textContent = "교환 중…";
+      try {
+        const resp = await fetch("/api/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, portfolio }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          exchangeEl.innerHTML = '<span class="ok">토큰 교환 성공 ✓</span>';
+          // 서버가 돌려준 포트폴리오로 표시 갱신(있으면)
+          if (Array.isArray(data.portfolio) && data.portfolio.length) {
+            portfolioEl.textContent = data.portfolio.join(", ");
+          }
+        } else {
+          exchangeEl.innerHTML = `<span class="warn">교환 실패 ✗</span>`;
+          portfolioEl.textContent = data.error || "토큰 교환에 실패했어요.";
+        }
+      } catch (e) {
+        exchangeEl.innerHTML = '<span class="warn">교환 실패 ✗ (네트워크 오류)</span>';
       }
     }
   </script>
