@@ -191,17 +191,9 @@
 
   </div>
 
+  <!-- 공통 설정: KAKAO_REST_API_KEY, REDIRECT_URI, CATALOG -->
+  <script src="config.js"></script>
   <script>
-    // 종목 카탈로그 — rich-agent 카탈로그와 동일하게 유지.
-    // 나중에 카탈로그에서 자동 생성할 수 있게 배열로 정의 (지금은 하드코딩).
-    const CATALOG = [
-      { ticker: "VOO",  leg: "S&P500",      mode: "strategy" },
-      { ticker: "QQQ",  leg: "나스닥",      mode: "strategy" },
-      { ticker: "SOXX", leg: "반도체",      mode: "strategy" },
-      { ticker: "SMH",  leg: "반도체",      mode: "strategy" },
-      { ticker: "MGK",  leg: "메가캡 성장", mode: "monitor"  },
-    ];
-
     const catalogEl = document.getElementById("catalog");
     const summaryEl = document.getElementById("summary");
 
@@ -232,9 +224,32 @@
     }
     checkboxes.forEach(c => c.addEventListener("change", updateSummary));
 
-    // 시작 버튼 — 이번엔 모양만. 실제 OAuth는 다음 단계.
+    // 시작 버튼 — 카카오 인증으로 이동. 토큰 교환은 콜백/다음 단계(3c)에서.
+    const placeholderEl = document.getElementById("placeholder");
     document.getElementById("startBtn").addEventListener("click", () => {
-      document.getElementById("placeholder").textContent = "다음 단계에서 연결됩니다.";
+      const picked = [...checkboxes].filter(c => c.checked).map(c => c.value);
+      if (picked.length === 0) {
+        placeholderEl.textContent = "지켜볼 ETF를 하나 이상 선택해주세요.";
+        return;
+      }
+
+      // CSRF 방지용 nonce: sessionStorage에 저장해두고 콜백에서 대조한다.
+      const nonce = crypto.randomUUID();
+      sessionStorage.setItem("kakao_oauth_nonce", nonce);
+
+      // state에 선택 포트폴리오 + nonce를 실어 보낸다 (콜백에서 복원·검증).
+      const state = JSON.stringify({ p: picked, n: nonce });
+
+      const params = new URLSearchParams({
+        client_id: KAKAO_REST_API_KEY,
+        redirect_uri: REDIRECT_URI,
+        response_type: "code",
+        scope: "talk_message",
+        state: state,
+      });
+
+      placeholderEl.textContent = "카카오로 이동 중…";
+      location.href = "https://kauth.kakao.com/oauth/authorize?" + params.toString();
     });
   </script>
 </body>

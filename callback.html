@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rich-agent — 연결 확인</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --line: #e3e6ea;
+      --text: #1a1d22;
+      --muted: #6b7280;
+      --ok: #1f9d55;
+      --warn: #c0392b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    .lead { font-size: 15px; color: var(--muted); margin: 0 0 24px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 18px;
+      margin: 0 0 14px;
+    }
+    .card .label { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+    .card .value { font-size: 17px; font-weight: 600; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+
+    .next {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 22px;
+      text-align: center;
+    }
+    a.back {
+      display: inline-block;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🔗 연결 확인</h1>
+    <p class="lead">카카오에서 돌아왔어요. 받은 내용을 확인합니다.</p>
+
+    <div class="card">
+      <p class="label">인가코드</p>
+      <p class="value" id="codeStatus">확인 중…</p>
+    </div>
+
+    <div class="card">
+      <p class="label">받은 포트폴리오</p>
+      <p class="value" id="portfolio">확인 중…</p>
+    </div>
+
+    <div class="card" id="csrfCard" style="display:none">
+      <p class="label">보안 검증 (CSRF)</p>
+      <p class="value" id="csrfStatus"></p>
+    </div>
+
+    <p class="next">여기까지가 이번 단계예요. 토큰 교환과 저장은 다음 단계에서 진행됩니다.</p>
+    <div style="text-align:center"><a class="back" href="/">← 처음으로</a></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const code = params.get("code");
+    const stateRaw = params.get("state");
+    const error = params.get("error");
+    const errorDesc = params.get("error_description");
+
+    const codeEl = document.getElementById("codeStatus");
+    const portfolioEl = document.getElementById("portfolio");
+    const csrfCard = document.getElementById("csrfCard");
+    const csrfStatus = document.getElementById("csrfStatus");
+
+    // 1) 사용자가 동의를 거부했거나 에러로 돌아온 경우
+    if (error) {
+      codeEl.innerHTML = '<span class="warn">받지 못함 ✗</span>';
+      portfolioEl.textContent = errorDesc ? `오류: ${errorDesc}` : `오류: ${error}`;
+    } else {
+      // 2) 인가코드 — 값 자체는 노출 최소화 (받았다는 사실만 표시)
+      codeEl.innerHTML = code
+        ? '<span class="ok">인가코드 받음 ✓</span>'
+        : '<span class="warn">인가코드 없음 ✗</span>';
+
+      // 3) state 복원: 포트폴리오 + nonce
+      let parsed = null;
+      try {
+        parsed = stateRaw ? JSON.parse(stateRaw) : null;
+      } catch (e) {
+        parsed = null;
+      }
+
+      const picked = parsed && Array.isArray(parsed.p) ? parsed.p : [];
+      portfolioEl.textContent = picked.length ? picked.join(", ") : "(선택한 종목 없음)";
+
+      // 4) CSRF 검증: 보낸 nonce와 sessionStorage에 저장해둔 값 대조
+      const sentNonce = parsed ? parsed.n : null;
+      const savedNonce = sessionStorage.getItem("kakao_oauth_nonce");
+      if (sentNonce || savedNonce) {
+        csrfCard.style.display = "";
+        if (sentNonce && savedNonce && sentNonce === savedNonce) {
+          csrfStatus.innerHTML = '<span class="ok">정상 ✓</span>';
+        } else {
+          csrfStatus.innerHTML = '<span class="warn">불일치 ✗ (다시 시도해주세요)</span>';
+        }
+        // 일회용: 검증 후 제거
+        sessionStorage.removeItem("kakao_oauth_nonce");
+      }
+    }
+  </script>
+</body>
+</html>
