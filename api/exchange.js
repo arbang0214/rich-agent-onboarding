@@ -89,6 +89,14 @@ export default async function handler(req, res) {
       return res.status(502).json({ ok: false, error: "저장에 실패했어요. 잠시 후 다시 시도해주세요." });
     }
 
+    // 가입 성공 직후 환영 카톡 1회 전송 (부가 기능: 실패해도 가입은 성공 처리).
+    // access_token은 여기서만 쓰고 저장하지 않는다 (저장은 refresh_token, 이미 friend.json에).
+    try {
+      await sendWelcome(data.access_token, friend.name, watchlist);
+    } catch (e) {
+      console.error("환영 메시지 전송 실패(가입은 성공 처리):", e.message);
+    }
+
     // 프런트에는 성공 여부 + 포트폴리오만. 토큰은 돌려주지 않는다.
     return res.status(200).json({
       ok: true,
@@ -147,6 +155,42 @@ async function saveFriend(friend) {
     throw new Error(`GitHub 커밋 실패 (${putResp.status})`);
   }
   console.log(`friend.json 저장 완료: ${path} (${sha ? "갱신" : "신규"})`);
+}
+
+// 방금 발급된 access_token으로 "나에게 보내기" 환영 메시지 1회 전송.
+// access_token은 전송에만 쓰고 저장하지 않는다. 토큰 값은 로그에 찍지 않는다.
+async function sendWelcome(accessToken, name, watchlist) {
+  const stocks = watchlist.length ? watchlist.join(", ") : "선택한 종목";
+  const text =
+    `🎉 rich-agent 가입 완료!\n${name}님, 이제 매일 미국 장 마감 후 보유 ETF 구간을 확인해서 알려드려요. ` +
+    `떨어질 때 알림이 오고, 살지 말지는 직접 결정하면 돼요. 📊 ${stocks}`;
+
+  const templateObject = {
+    object_type: "text",
+    text: text,
+    link: {
+      web_url: "https://rich-agent-onboarding.vercel.app",
+      mobile_web_url: "https://rich-agent-onboarding.vercel.app",
+    },
+  };
+
+  const body = new URLSearchParams({ template_object: JSON.stringify(templateObject) });
+
+  const resp = await fetch("https://kapi.kakao.com/v2/api/talk/memo/default/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+    },
+    body: body.toString(),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    // 카카오 API 에러 응답만 로그 (토큰 값 아님)
+    throw new Error(`카카오 메시지 API ${resp.status}: ${err.slice(0, 150)}`);
+  }
+  console.log("환영 메시지 전송 성공");
 }
 
 // 파일명에 안전한 이름만: 공백→_, 한글·영숫자·_- 외 제거. 비면 친구로.
