@@ -1,0 +1,9 @@
+# 로컬 에디터/도구 설정
+.claude/
+
+# 비밀: 이 repo엔 어떤 토큰·키도 커밋하지 않는다 (CLAUDE.md 보안 원칙)
+friend.json
+.env
+.env.*
+.vercel/
+node_modules/

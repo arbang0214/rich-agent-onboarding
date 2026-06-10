@@ -1,8 +1,241 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8"><title>rich-agent 온보딩</title></head>
-<body style="font-family:sans-serif;text-align:center;padding:60px">
-  <h1>🚀 rich-agent 온보딩</h1>
-  <p>배포 테스트 — 여기에 곧 카카오 로그인 + 포트폴리오 선택이 들어갑니다.</p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rich-agent — 미국 ETF 알림</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #181b22;
+      --line: #2a2f3a;
+      --text: #e8eaed;
+      --muted: #9aa0aa;
+      --accent: #ffd400;      /* 카카오 노랑 계열 */
+      --accent-ink: #2b2000;
+      --pick: #3a86ff;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
+
+    /* ── 소개 섹션 ── */
+    .hero h1 {
+      font-size: 28px;
+      margin: 0 0 6px;
+      letter-spacing: -0.3px;
+    }
+    .tagline {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 0 0 16px;
+    }
+    .hero p {
+      font-size: 15px;
+      color: var(--text);
+      margin: 0 0 12px;
+    }
+    .hero p.dim { color: var(--muted); }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0;
+    }
+    .pill {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+    }
+
+    .note {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--muted);
+      margin: 4px 0 28px;
+    }
+    .note .yes { color: var(--text); }
+
+    /* ── 포트폴리오 ── */
+    h2 {
+      font-size: 18px;
+      margin: 0 0 4px;
+    }
+    .section-sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0 0 16px;
+    }
+
+    .list { display: flex; flex-direction: column; gap: 12px; }
+
+    /* 라벨 전체가 터치 영역 = 모바일에서 누르기 좋게 */
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 16px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .item:hover { border-color: #3a4150; }
+    .item.checked { border-color: var(--pick); background: #1a2030; }
+
+    .item input {
+      width: 24px;
+      height: 24px;
+      accent-color: var(--pick);
+      flex: 0 0 auto;
+      margin: 0;
+    }
+    .item .meta { display: flex; flex-direction: column; }
+    .item .ticker { font-size: 17px; font-weight: 700; }
+    .item .leg { font-size: 14px; color: var(--muted); }
+    .item .tag {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 9px;
+      white-space: nowrap;
+    }
+
+    /* ── 선택 요약 ── */
+    .summary {
+      margin: 22px 0 0;
+      font-size: 15px;
+      color: var(--muted);
+      min-height: 22px;
+    }
+    .summary b { color: var(--text); }
+
+    /* ── 시작 버튼 ── */
+    .start {
+      width: 100%;
+      margin-top: 24px;
+      padding: 18px;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent-ink);
+      background: var(--accent);
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+    .start:active { transform: translateY(1px); }
+
+    .placeholder-msg {
+      text-align: center;
+      font-size: 14px;
+      color: var(--muted);
+      margin: 14px 0 0;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- 소개 -->
+    <section class="hero">
+      <h1>🚀 rich-agent</h1>
+      <p class="tagline">미국 ETF, 살 타이밍을 대신 지켜봐 드려요</p>
+      <p>매일 미국 장 마감 후, 보유 ETF가 사상 최고가(ATH) 대비 얼마나 빠졌는지 확인해서 카카오톡으로 알려드려요.</p>
+      <p>📉 고점 대비 -10% / -20% / -30% 빠지면 단계별 알림이 오고, 신고점 회복하면 환원 신호를 드려요. 1.5배 매수법 그대로요.</p>
+      <p class="dim">떨어질 때 알림이 오고, 얼마나 살지는 직접 결정하면 돼요.</p>
+
+      <div class="pills">
+        <span class="pill">🔔 카카오톡 (나에게만 전송)</span>
+        <span class="pill">📊 포트폴리오 (지켜볼 ETF)</span>
+      </div>
+
+      <div class="note">
+        안 하는 것: 매매 ❌ · 돈 관리 ❌ · 매수량 추천 ❌<br>
+        <span class="yes">구간 알림만, 투자 권유가 아닌 참고용이에요.</span>
+      </div>
+    </section>
+
+    <!-- 포트폴리오 선택 -->
+    <section>
+      <h2>📊 지켜볼 ETF 고르기</h2>
+      <p class="section-sub">보유 중이거나 지켜보고 싶은 종목을 선택하세요.</p>
+      <div class="list" id="catalog"></div>
+
+      <p class="summary" id="summary">아직 선택한 종목이 없어요.</p>
+
+      <button class="start" id="startBtn">카카오로 시작하기</button>
+      <p class="placeholder-msg" id="placeholder"></p>
+    </section>
+
+  </div>
+
+  <script>
+    // 종목 카탈로그 — rich-agent 카탈로그와 동일하게 유지.
+    // 나중에 카탈로그에서 자동 생성할 수 있게 배열로 정의 (지금은 하드코딩).
+    const CATALOG = [
+      { ticker: "VOO",  leg: "S&P500",      mode: "strategy" },
+      { ticker: "QQQ",  leg: "나스닥",      mode: "strategy" },
+      { ticker: "SOXX", leg: "반도체",      mode: "strategy" },
+      { ticker: "SMH",  leg: "반도체",      mode: "strategy" },
+      { ticker: "MGK",  leg: "메가캡 성장", mode: "monitor"  },
+    ];
+
+    const catalogEl = document.getElementById("catalog");
+    const summaryEl = document.getElementById("summary");
+
+    // 체크박스 목록 렌더
+    CATALOG.forEach((s) => {
+      const label = document.createElement("label");
+      label.className = "item";
+      label.innerHTML = `
+        <input type="checkbox" value="${s.ticker}">
+        <span class="meta">
+          <span class="ticker">${s.ticker}</span>
+          <span class="leg">${s.leg}</span>
+        </span>
+        ${s.mode === "monitor" ? '<span class="tag">하락 알림만</span>' : ''}
+      `;
+      catalogEl.appendChild(label);
+    });
+
+    // 선택 상태 갱신
+    const checkboxes = catalogEl.querySelectorAll('input[type="checkbox"]');
+    function updateSummary() {
+      const picked = [...checkboxes].filter(c => c.checked).map(c => c.value);
+      // 선택된 항목 카드 강조
+      checkboxes.forEach(c => c.closest(".item").classList.toggle("checked", c.checked));
+      summaryEl.innerHTML = picked.length
+        ? `선택: <b>${picked.join(", ")}</b>`
+        : "아직 선택한 종목이 없어요.";
+    }
+    checkboxes.forEach(c => c.addEventListener("change", updateSummary));
+
+    // 시작 버튼 — 이번엔 모양만. 실제 OAuth는 다음 단계.
+    document.getElementById("startBtn").addEventListener("click", () => {
+      document.getElementById("placeholder").textContent = "다음 단계에서 연결됩니다.";
+    });
+  </script>
 </body>
 </html>
