@@ -50,12 +50,31 @@
       color: var(--muted);
       font-size: 14px;
     }
+    .banner {
+      display: none;
+      background: #eafaf0;
+      border: 1px solid #b7e4c7;
+      border-radius: 14px;
+      padding: 20px 18px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ok);
+      margin: 0 0 20px;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>🔗 연결 확인</h1>
-    <p class="lead">카카오에서 돌아왔어요. 받은 내용을 확인합니다.</p>
+    <p class="lead">카카오에서 돌아왔어요. 가입을 마무리합니다.</p>
+
+    <div class="banner" id="banner">🎉 가입 완료! 이제 매일 알림을 받아요</div>
+
+    <div class="card">
+      <p class="label">이름</p>
+      <p class="value" id="nameStatus">확인 중…</p>
+    </div>
 
     <div class="card">
       <p class="label">인가코드</p>
@@ -63,7 +82,7 @@
     </div>
 
     <div class="card">
-      <p class="label">토큰 교환</p>
+      <p class="label">토큰 교환 · 저장</p>
       <p class="value" id="exchangeStatus">대기 중…</p>
     </div>
 
@@ -77,7 +96,7 @@
       <p class="value" id="csrfStatus"></p>
     </div>
 
-    <p class="next">여기까지가 이번 단계예요. 토큰 교환과 저장은 다음 단계에서 진행됩니다.</p>
+    <p class="next">알림은 매일 미국 장 마감 후에 카카오톡으로 와요.</p>
     <div style="text-align:center"><a class="back" href="/">← 처음으로</a></div>
   </div>
 
@@ -89,14 +108,17 @@
     const error = params.get("error");
     const errorDesc = params.get("error_description");
 
+    const nameEl = document.getElementById("nameStatus");
     const codeEl = document.getElementById("codeStatus");
     const exchangeEl = document.getElementById("exchangeStatus");
     const portfolioEl = document.getElementById("portfolio");
     const csrfCard = document.getElementById("csrfCard");
     const csrfStatus = document.getElementById("csrfStatus");
+    const bannerEl = document.getElementById("banner");
 
     // 1) 사용자가 동의를 거부했거나 에러로 돌아온 경우
     if (error) {
+      nameEl.textContent = "—";
       codeEl.innerHTML = '<span class="warn">받지 못함 ✗</span>';
       exchangeEl.textContent = "—";
       portfolioEl.textContent = errorDesc ? `오류: ${errorDesc}` : `오류: ${error}`;
@@ -117,6 +139,9 @@
       const picked = parsed && Array.isArray(parsed.p) ? parsed.p : [];
       portfolioEl.textContent = picked.length ? picked.join(", ") : "(선택한 종목 없음)";
 
+      const name = parsed && parsed.name ? String(parsed.name) : "";
+      nameEl.textContent = name || "(이름 없음)";
+
       // 4) CSRF 검증: 보낸 nonce와 sessionStorage에 저장해둔 값 대조
       const sentNonce = parsed ? parsed.n : null;
       const savedNonce = sessionStorage.getItem("kakao_oauth_nonce");
@@ -131,39 +156,42 @@
         sessionStorage.removeItem("kakao_oauth_nonce");
       }
 
-      // 5) 토큰 교환: code가 있고 CSRF가 정상일 때만 서버 함수로 보낸다.
-      //    토큰 값은 서버에서만 다루고, 프런트는 성공/실패만 받는다.
-      if (code && csrfOk) {
-        exchange(code, picked);
+      // 5) 토큰 교환 + 저장: code가 있고 CSRF가 정상일 때만 서버 함수로 보낸다.
+      //    토큰·refresh_token은 서버에서만 다루고, 프런트는 성공/실패만 받는다.
+      if (code && csrfOk && name) {
+        exchange(code, picked, name);
       } else if (!csrfOk) {
         exchangeEl.innerHTML = '<span class="warn">보안 검증 실패로 중단됨 ✗</span>';
+      } else if (!name) {
+        exchangeEl.innerHTML = '<span class="warn">이름이 없어 중단됨 ✗</span>';
       } else {
         exchangeEl.innerHTML = '<span class="warn">인가코드가 없어 건너뜀 ✗</span>';
       }
     }
 
-    // 서버리스 함수에 code를 POST → 토큰 교환. 응답은 성공/실패 + 포트폴리오뿐.
-    async function exchange(code, portfolio) {
-      exchangeEl.textContent = "교환 중…";
+    // 서버리스 함수에 code+이름+포트폴리오를 POST → 토큰 교환 후 friend.json 저장.
+    // 응답은 성공/실패 + 포트폴리오뿐 (refresh_token 등 토큰은 절대 안 받는다).
+    async function exchange(code, portfolio, name) {
+      exchangeEl.textContent = "처리 중…";
       try {
         const resp = await fetch("/api/exchange", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, portfolio }),
+          body: JSON.stringify({ code, portfolio, name }),
         });
         const data = await resp.json();
         if (data.ok) {
-          exchangeEl.innerHTML = '<span class="ok">토큰 교환 성공 ✓</span>';
-          // 서버가 돌려준 포트폴리오로 표시 갱신(있으면)
+          exchangeEl.innerHTML = '<span class="ok">완료 ✓</span>';
+          bannerEl.style.display = "block";   // 🎉 가입 완료 배너
           if (Array.isArray(data.portfolio) && data.portfolio.length) {
             portfolioEl.textContent = data.portfolio.join(", ");
           }
         } else {
-          exchangeEl.innerHTML = `<span class="warn">교환 실패 ✗</span>`;
-          portfolioEl.textContent = data.error || "토큰 교환에 실패했어요.";
+          exchangeEl.innerHTML = '<span class="warn">실패 ✗</span>';
+          portfolioEl.textContent = data.error || "저장에 실패했어요. 다시 시도해주세요.";
         }
       } catch (e) {
-        exchangeEl.innerHTML = '<span class="warn">교환 실패 ✗ (네트워크 오류)</span>';
+        exchangeEl.innerHTML = '<span class="warn">실패 ✗ (네트워크 오류)</span>';
       }
     }
   </script>

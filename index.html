@@ -85,6 +85,18 @@
       margin: 0 0 16px;
     }
 
+    .name-input {
+      width: 100%;
+      padding: 16px;
+      font-size: 17px;
+      color: var(--text);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 8px;
+    }
+    .name-input:focus { outline: none; border-color: var(--pick); }
+
     .list { display: flex; flex-direction: column; gap: 12px; }
 
     /* 라벨 전체가 터치 영역 = 모바일에서 누르기 좋게 */
@@ -177,6 +189,14 @@
       </div>
     </section>
 
+    <!-- 이름 입력 -->
+    <section>
+      <h2>🙋 이름</h2>
+      <p class="section-sub">알림에 쓸 이름이에요. (예: 홍길동)</p>
+      <input type="text" id="nameInput" class="name-input" placeholder="이름을 입력하세요"
+             autocomplete="name" maxlength="20" />
+    </section>
+
     <!-- 포트폴리오 선택 -->
     <section>
       <h2>📊 지켜볼 ETF 고르기</h2>
@@ -226,7 +246,14 @@
 
     // 시작 버튼 — 카카오 인증으로 이동. 토큰 교환은 콜백/다음 단계(3c)에서.
     const placeholderEl = document.getElementById("placeholder");
+    const nameInput = document.getElementById("nameInput");
     document.getElementById("startBtn").addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        placeholderEl.textContent = "이름을 입력해주세요.";
+        nameInput.focus();
+        return;
+      }
       const picked = [...checkboxes].filter(c => c.checked).map(c => c.value);
       if (picked.length === 0) {
         placeholderEl.textContent = "지켜볼 ETF를 하나 이상 선택해주세요.";
@@ -237,8 +264,8 @@
       const nonce = crypto.randomUUID();
       sessionStorage.setItem("kakao_oauth_nonce", nonce);
 
-      // state에 선택 포트폴리오 + nonce를 실어 보낸다 (콜백에서 복원·검증).
-      const state = JSON.stringify({ p: picked, n: nonce });
+      // state에 이름 + 선택 포트폴리오 + nonce를 실어 보낸다 (콜백에서 복원·검증).
+      const state = JSON.stringify({ name: name, p: picked, n: nonce });
 
       const params = new URLSearchParams({
         client_id: KAKAO_REST_API_KEY,
